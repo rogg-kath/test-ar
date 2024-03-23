@@ -2,40 +2,58 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Xml;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class LineDrawer : MonoBehaviour
 {
     List<Vector3> linePoints;
+    List<Vector3> linePointsBig;
     float timer;
-    public float timerDelay;
+    float timerDelay;
+
+    GameObject smallModel;
+    GameObject bigModel;
 
     GameObject newLine;
+    GameObject newLineBig;
     LineRenderer drawLine;
-    public float lineWidth;
+    LineRenderer drawLineBig;
+    float lineWidth;
+
     
 
     // Start is called before the first frame update
     void Start()
     {
         linePoints = new List<Vector3>();
+        linePointsBig = new List<Vector3>();
+        timerDelay = Constants.timerDelay;
         timer = timerDelay;
+        smallModel = GameObject.Find(Constants.nameSmall);
+        bigModel = GameObject.Find("BigCenter");
+        lineWidth = 0.05f;
+        Debug.Log(Constants.scaleBig);
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) {
+        if (Input.GetMouseButtonDown(1)) {
             SetupLineRenderer();
         }
 
-        if (Input.GetMouseButton(0)) {
+        if (Input.GetMouseButton(1)) {
+            Constants.scaleBig = bigModel.transform.localScale.x;
             DrawContinous();
         }
 
-        if (Input.GetMouseButtonUp(0)) {
+        if (Input.GetMouseButtonUp(1)) {
             // Debug.Log(linePoints.Count);
+            newLine.transform.parent = smallModel.transform;
+            newLineBig.transform.parent = bigModel.transform;
             linePoints.Clear();
+            linePointsBig.Clear();
         }
     }
 
@@ -44,27 +62,52 @@ public class LineDrawer : MonoBehaviour
         return ray.origin + ray.direction * 10;
     }
 
+    Vector3 GetPosition(Vector3 center, float scale) {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        return center + ray.direction * scale;
+    }
+
     Color randomColor() {
         return Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
     }
 
     void SetupLineRenderer() {
-        newLine = new GameObject();
+        newLine = new GameObject("Line"){
+            tag = "Small"
+        };
         drawLine = newLine.AddComponent<LineRenderer>();
+        drawLine.useWorldSpace = false;
         drawLine.material = new Material(Shader.Find("Sprites/Default"));
         drawLine.startColor = randomColor();
         drawLine.endColor = drawLine.startColor;
-        drawLine.startWidth = lineWidth;
-        drawLine.endWidth = lineWidth;
+        drawLine.startWidth = lineWidth * ( 1 / Constants.scaleBig);
+        drawLine.endWidth = lineWidth * ( 1 / Constants.scaleBig);
+
+        newLineBig = new GameObject("LineBig"){
+            tag = "Big"
+        };
+        drawLineBig = newLineBig.AddComponent<LineRenderer>();
+        drawLineBig.useWorldSpace = false;
+        drawLineBig.material = new Material(Shader.Find("Sprites/Default"));
+        drawLineBig.startColor = randomColor();
+        drawLineBig.endColor = drawLineBig.startColor;
+        drawLineBig.startWidth = lineWidth; // TODO soll kleines Modell auch gescaled werden können?
+        drawLineBig.endWidth = lineWidth;
     }
 
     void DrawContinous() {
-        Debug.DrawRay(Camera.main.ScreenToWorldPoint(Input.mousePosition), GetMousePosition(), Color.red);
+        // Debug.DrawRay(Camera.main.ScreenToWorldPoint(Input.mousePosition), GetMousePosition(), Color.red);
         timer -= Time.deltaTime;
         if (timer <= 0) {
-            linePoints.Add(GetMousePosition());
+            linePoints.Add(GetPosition(smallModel.transform.position, Constants.scaleSmall));
             drawLine.positionCount = linePoints.Count;
             drawLine.SetPositions(linePoints.ToArray());
+
+            linePointsBig.Add(GetPosition(bigModel.transform.position, Constants.scaleBig));
+            drawLineBig.positionCount = linePointsBig.Count;
+            drawLineBig.SetPositions(linePointsBig.ToArray());
+
+            Debug.Log("\n" + smallModel + "\n" + bigModel + "\nPosition Small: " + GetPosition(smallModel.transform.position, 1) + "\nPosition Big: " + GetPosition(bigModel.transform.position, 2));
             timer = timerDelay;
         }
     }
